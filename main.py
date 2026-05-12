@@ -1,8 +1,11 @@
-from typing import Dict
+from typing import Dict, Optional
+import re
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from ml_models.ner_extractor import extract_entities
 from ml_models.ocr_processor import extract_text
@@ -15,16 +18,6 @@ load_dotenv()
 app = FastAPI(
     title="SAGT - Sistema Automatizado de Gestion de Tramites",
     redirect_slashes=False,
-)
-
-# No mezclar allow_origins=["*"] con allow_credentials=True: el navegador bloquea CORS.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    allow_origin_regex=r"https://.*\.vercel\.app",
 )
 
 
@@ -60,6 +53,7 @@ async def root() -> Dict[str, str]:
 
 
 @app.post("/upload", response_model=DocumentResponse)
+@app.post("/upload/", response_model=DocumentResponse)
 async def upload_document(file: UploadFile = File(...)) -> DocumentResponse:
     """Recibe PDF/imagen y devuelve texto extraido."""
     try:
@@ -94,6 +88,7 @@ async def upload_document(file: UploadFile = File(...)) -> DocumentResponse:
 
 
 @app.post("/predict", response_model=PredictionResponse)
+@app.post("/predict/", response_model=PredictionResponse)
 async def predict_document(payload: PredictionRequest) -> PredictionResponse:
     """Recibe texto y devuelve entidades + clasificacion de prioridad."""
     try:
@@ -115,3 +110,38 @@ async def predict_document(payload: PredictionRequest) -> PredictionResponse:
         raise HTTPException(
             status_code=500, detail=f"Error durante la prediccion: {str(exc)}"
         ) from exc
+
+
+def _cors_allow_origin(origin: Optional[str]) -> str:
+    if not origin:
+        return "*"
+    if origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1"):
+        return origin
+    if re.match(r"^https://.+\.vercel\.app$", origin, re.I):
+        return origin
+    return "*"
+
+
+class GlobalCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get("origin")
+        allow = _cors_allow_origin(origin)
+        if request.method == "OPTIONS":
+            req_headers = request.headers.get("access-control-request-headers", "*")
+            return Response(
+                status_code=204,
+                headers={
+                    "Access-Control-Allow-Origin": allow,
+                    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                    "Access-Control-Allow-Headers": req_headers,
+                    "Access-Control-Max-Age": "86400",
+                },
+            )
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = allow
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+
+app.add_middleware(GlobalCORSMiddleware)
