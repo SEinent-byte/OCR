@@ -12,14 +12,19 @@ from ml_models.triage_classifier import classify_document
 # Carga variables de entorno para entorno local/despliegue.
 load_dotenv(override=True)
 
-app = FastAPI(title="SAGT - Sistema Automatizado de Gestion de Tramites")
+app = FastAPI(
+    title="SAGT - Sistema Automatizado de Gestion de Tramites",
+    redirect_slashes=False,
+)
 
-# CORS habilitado para peticiones desde frontend en Vercel.
+# CORS: * sin credentials es valido; regex cubre previews *.vercel.app
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app",
 )
 
 
