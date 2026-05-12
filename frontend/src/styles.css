@@ -38,6 +38,13 @@ body {
     radial-gradient(circle at 45% 60%, rgba(217, 70, 239, 0.08), transparent 30%),
     linear-gradient(145deg, var(--bg-1), var(--bg-2) 38%, var(--bg-3) 70%, var(--bg-4));
   background-attachment: fixed;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .app-shell {
@@ -52,6 +59,23 @@ body {
 
 .desktop-sidebar {
   display: none;
+}
+
+/* Mantiene scroll funcional sin mostrar barras (Chrome, Safari, Edge, Firefox) */
+.container,
+.request-list,
+.review-modal,
+.text-preview {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.container::-webkit-scrollbar,
+.request-list::-webkit-scrollbar,
+.review-modal::-webkit-scrollbar,
+.text-preview::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .sub {
