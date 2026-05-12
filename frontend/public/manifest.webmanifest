@@ -1,0 +1,17 @@
+{
+  "name": "SAGT OCR Municipal",
+  "short_name": "SAGT OCR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050814",
+  "theme_color": "#3b82f6",
+  "description": "Sistema OCR municipal para gestión de trámites",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

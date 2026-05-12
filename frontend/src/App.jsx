@@ -24,9 +24,24 @@ function getStatusLabel(status) {
   return "PENDIENTE";
 }
 
+function getStatusToneClass(status) {
+  if (status === "ACEPTADA") return "status-pill status-pill-ok";
+  if (status === "OBSERVADA") return "status-pill status-pill-warn";
+  if (status === "RECHAZADA") return "status-pill status-pill-bad";
+  return "status-pill status-pill-pending";
+}
+
+function getObservationToneClass(status) {
+  if (status === "ACEPTADA") return "observation-pill observation-pill-ok";
+  if (status === "OBSERVADA") return "observation-pill observation-pill-warn";
+  if (status === "RECHAZADA") return "observation-pill observation-pill-bad";
+  return "observation-pill observation-pill-pending";
+}
+
 export default function App() {
   const [role, setRole] = useState(null);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [creatorOpen, setCreatorOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [pwaStatus, setPwaStatus] = useState("");
   const [file, setFile] = useState(null);
@@ -35,10 +50,14 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [observation, setObservation] = useState("");
   const [bandejaPage, setBandejaPage] = useState(1);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [cooldownLeft, setCooldownLeft] = useState(0);
   const BANDEJA_PAGE_SIZE = 5;
+  const HISTORY_PAGE_SIZE = 5;
   const solicitanteFormRef = useRef(null);
   const misSolicitudesRef = useRef(null);
   const reviewerBandejaRef = useRef(null);
@@ -55,6 +74,25 @@ export default function App() {
   const currentRoleLabel = role === "solicitante" ? "Solicitante" : "Revisor Municipal";
   const pendientesRevisionCount = solicitudes.filter((s) => s.estado === "PENDIENTE").length;
   const decisionPendienteCount = selectedSolicitud ? 1 : 0;
+  const historyFiltered = useMemo(() => {
+    const needle = historySearch.trim().toLowerCase();
+    if (!needle) return solicitudes;
+    return solicitudes.filter((item) => {
+      const fields = [
+        item.archivo,
+        item.id,
+        getStatusLabel(item.estado),
+        item.observation,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return fields.includes(needle);
+    });
+  }, [historySearch, solicitudes]);
+  const historyTotalPages = Math.max(1, Math.ceil(historyFiltered.length / HISTORY_PAGE_SIZE));
+  const historyStart = (historyPage - 1) * HISTORY_PAGE_SIZE;
+  const historyItems = historyFiltered.slice(historyStart, historyStart + HISTORY_PAGE_SIZE);
   const stats = useMemo(() => {
     const total = solicitudes.length;
     const pendientes = solicitudes.filter((s) => s.estado === "PENDIENTE").length;
@@ -78,6 +116,10 @@ export default function App() {
     const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
   }, [cooldownUntil, isCooldownActive]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historySearch]);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event) => {
@@ -172,8 +214,8 @@ export default function App() {
   };
 
   const goToSolicitantePanel = () => {
-    setRole("solicitante");
-    setTimeout(() => scrollToSection(solicitanteFormRef), 0);
+    setRole(null);
+    setRoleMenuOpen(false);
   };
 
   const goToSolicitanteSolicitudes = () => {
@@ -199,7 +241,7 @@ export default function App() {
 
   const installPwa = async () => {
     if (!deferredPrompt) {
-      setPwaStatus("Instalación no disponible en este dispositivo");
+      setPwaStatus("Si no aparece el instalador, usa 'Agregar a pantalla de inicio' del navegador");
       return;
     }
     deferredPrompt.prompt();
@@ -213,7 +255,7 @@ export default function App() {
   };
 
   const shareByWhatsApp = () => {
-    const appUrl = window.location.href;
+    const appUrl = "https://ocr-zeta-eight.vercel.app";
     const message =
       "Prueba la app web OCR municipal.\n" +
       "Creador: A.\n" +
@@ -226,27 +268,44 @@ export default function App() {
   return (
     <main className="container">
       <header className="hero">
-        <div className="hero-brand">
-          <span className="hero-dot" />
-          <h1>SAGT - Dashboard de Tramites</h1>
-        </div>
-        <p className="sub">Flujo por rol: solicitante carga, revisor evalúa y decide.</p>
-        <div className="hero-contact-row">
-          <article className="creator-card">
-            <img
-              src={creatorPhoto}
-              alt="Creador A"
-              className="creator-avatar"
-            />
-            <div className="creator-copy">
-              <strong>Creador: A</strong>
-              <span>Contacto: 970999796</span>
+        {!role && (
+          <>
+            <div className="hero-brand">
+              <span className="hero-dot" />
+              <h1>Trámites Municipales</h1>
             </div>
-          </article>
-          <button type="button" className="share-whatsapp-btn" onClick={shareByWhatsApp}>
-            Compartir por WhatsApp
-          </button>
-        </div>
+            <div className="hero-contact-row">
+              <article
+                className={creatorOpen ? "creator-card open" : "creator-card"}
+                onClick={() => setCreatorOpen((prev) => !prev)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setCreatorOpen((prev) => !prev);
+                  }
+                }}
+                aria-expanded={creatorOpen}
+              >
+                <img
+                  src={creatorPhoto}
+                  alt="Creador A"
+                  className="creator-avatar"
+                />
+                {creatorOpen && (
+                  <div className="creator-copy">
+                    <strong>Creador: A</strong>
+                    <span>Contacto: 970999796</span>
+                  </div>
+                )}
+              </article>
+              <button type="button" className="share-whatsapp-btn" onClick={shareByWhatsApp}>
+                Compartir por WhatsApp
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
       {!role ? (
@@ -308,11 +367,6 @@ export default function App() {
           {role === "solicitante" && (
             <section className="workspace">
               <div className="module-content">
-                <article className="card module-title">
-                  <h2>Enviar solicitud</h2>
-                  <p className="sub">Carga tu documento para que el revisor municipal lo atienda.</p>
-                </article>
-
                 <section className="grid solicitante-grid">
                   <form onSubmit={onSubmit} className="card" ref={solicitanteFormRef}>
                     <label className="field-label" htmlFor="fileInput">Documento (PDF o imagen)</label>
@@ -358,11 +412,15 @@ export default function App() {
                     <h2>Última respuesta del revisor</h2>
                     <p className="review-state">
                       Trámite <strong>{latestFeedback.id}</strong> · Estado{" "}
-                      <strong>{getStatusLabel(latestFeedback.estado)}</strong>
+                      <strong className={getStatusToneClass(latestFeedback.estado)}>
+                        {getStatusLabel(latestFeedback.estado)}
+                      </strong>
                     </p>
                     <p className="review-state">
                       Comentario:{" "}
-                      <strong>{latestFeedback.observation || "Sin observación"}</strong>
+                      <strong className={getObservationToneClass(latestFeedback.estado)}>
+                        {latestFeedback.observation || "Sin observación"}
+                      </strong>
                     </p>
                     <p className="sub">
                       Fecha de revisión: {latestFeedback.fechaRevision || "Pendiente"}
@@ -371,21 +429,73 @@ export default function App() {
                 )}
 
                 <article className="card" ref={misSolicitudesRef}>
-                  <h2>Mis solicitudes</h2>
-                  {solicitudes.length === 0 ? (
-                    <p className="empty">Aún no enviaste solicitudes.</p>
-                  ) : (
-                    <ul className="history-list">
-                      {solicitudes.map((item) => (
-                        <li key={item.id}>
-                          <strong>{item.archivo}</strong>
-                          <span>{item.id}</span>
-                          <span>Estado: {getStatusLabel(item.estado)}</span>
-                          <small>Observación: {item.observation || "Pendiente de revisión"}</small>
-                          <em>{item.fechaRevision || item.fecha}</em>
-                        </li>
-                      ))}
-                    </ul>
+                  <button
+                    type="button"
+                    className="history-toggle"
+                    onClick={() => setHistoryOpen((prev) => !prev)}
+                  >
+                    <span>Mis solicitudes</span>
+                    <span>{historyOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {historyOpen && (
+                    <>
+                      <div className="history-toolbar">
+                        <span className="history-search-icon">⌕</span>
+                        <input
+                          type="text"
+                          className="history-search"
+                          placeholder="Buscar por código, estado o comentario"
+                          value={historySearch}
+                          onChange={(e) => setHistorySearch(e.target.value)}
+                        />
+                      </div>
+                      {historyFiltered.length === 0 ? (
+                        <p className="empty">No hay resultados para tu búsqueda.</p>
+                      ) : (
+                        <>
+                          <ul className="history-list">
+                            {historyItems.map((item) => (
+                              <li key={item.id} className="history-item">
+                                <div className="history-item-top">
+                                  <strong>{item.archivo}</strong>
+                                  <span className={getStatusToneClass(item.estado)}>
+                                    {getStatusLabel(item.estado)}
+                                  </span>
+                                </div>
+                                <span className="history-id">{item.id}</span>
+                                <small className={getObservationToneClass(item.estado)}>
+                                  {item.observation || "Pendiente de revisión"}
+                                </small>
+                                <em>{item.fechaRevision || item.fecha}</em>
+                              </li>
+                            ))}
+                          </ul>
+                          {historyTotalPages > 1 && (
+                            <div className="pager">
+                              <button
+                                type="button"
+                                className="pager-btn"
+                                onClick={() => setHistoryPage((prev) => Math.max(1, prev - 1))}
+                                disabled={historyPage === 1}
+                              >
+                                {"<"}
+                              </button>
+                              <span className="pager-info">
+                                Página {historyPage} de {historyTotalPages}
+                              </span>
+                              <button
+                                type="button"
+                                className="pager-btn"
+                                onClick={() => setHistoryPage((prev) => Math.min(historyTotalPages, prev + 1))}
+                                disabled={historyPage === historyTotalPages}
+                              >
+                                {">"}
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
                   )}
                 </article>
               </div>
@@ -490,25 +600,25 @@ export default function App() {
       <nav className="mobile-bottom-nav" aria-label="Navegación móvil">
         <button type="button" className="mobile-nav-item" onClick={goToSolicitantePanel}>
           <span className="mobile-nav-icon">⌂</span>
-          <span>Panel</span>
+          <span>Inicio</span>
         </button>
         <button type="button" className="mobile-nav-item" onClick={goToSolicitanteSolicitudes}>
           <span className="mobile-nav-icon">☰</span>
           <span>Mis</span>
         </button>
         <button type="button" className="mobile-nav-item mobile-nav-item-plus" onClick={installPwa}>
-          <span className="mobile-nav-icon">＋</span>
-          <span>Instalar</span>
+          <span className="mobile-nav-icon mobile-nav-download" aria-hidden="true">⤓</span>
+          <span className="sr-only">Instalar app</span>
         </button>
         <button type="button" className="mobile-nav-item" onClick={goToRevisorBandeja}>
-          <span className="mobile-nav-icon">🗂</span>
+          <span className="mobile-nav-icon">◫</span>
           <span>Revisor</span>
           {pendientesRevisionCount > 0 && (
             <span className="mobile-nav-count">{pendientesRevisionCount}</span>
           )}
         </button>
         <button type="button" className="mobile-nav-item" onClick={goToRevisorDecision}>
-          <span className="mobile-nav-icon">✔</span>
+          <span className="mobile-nav-icon">✓</span>
           <span>Decidir</span>
           {decisionPendienteCount > 0 && (
             <span className="mobile-nav-count">{decisionPendienteCount}</span>
