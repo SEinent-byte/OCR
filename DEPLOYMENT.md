@@ -1,6 +1,8 @@
 # SAGT - Despliegue a Produccion
 
-Guia rapida para publicar el monorepo en Railway (backend) y Vercel (frontend + landing).
+Guia rapida para publicar **un solo repo (monorepo)** en Railway (solo API) y Vercel (solo front).
+
+**Regla:** en Railway debe correr **Python + uvicorn** (`backend/`). En Vercel debe correr **Vite** (`frontend/` o raiz con `package.json` de la raiz). Si en Railway sirves el `dist` del front, `POST /upload` devolvera **405** y el navegador mostrara errores de CORS.
 
 ## 1) Verificaciones locales antes de subir
 
@@ -34,34 +36,53 @@ Guia rapida para publicar el monorepo en Railway (backend) y Vercel (frontend + 
 3. Build de validacion:
    - `npm run build`
 
-## 2) Deploy backend en Railway
+## 2) Monorepo — Backend en Railway (solo API)
 
-1. Crear proyecto nuevo en Railway.
-2. Conectar repositorio de GitHub.
-3. Configurar:
-   - **Root Directory**: `backend`
-4. Verificar que Railway detecte:
-   - `Procfile` y/o `railway.toml`
-   - `nixpacks.toml` (instala Tesseract para OCR de imágenes)
-5. Variables de entorno en Railway:
-   - `HF_TOKEN` (obligatoria)
-   - `TESSERACT_CMD` (solo en Windows local; en Railway no hace falta: `backend/nixpacks.toml` instala Tesseract con apt)
-6. Confirmar que el servicio quede con healthcheck:
-   - `/health`
-7. Guardar la URL publica del backend:
-   - Ejemplo: `https://sagt-backend.up.railway.app`
+Usa **el mismo repositorio** que el front. Este servicio **no** debe construir ni servir Vite.
 
-## 3) Deploy frontend en Vercel
+### Crear o corregir el servicio
 
-1. Crear proyecto en Vercel conectado al mismo repo.
-2. Configurar:
-   - **Root Directory**: `frontend`
-3. `vercel.json` ya apunta a build Vite y SPA rewrite.
-4. Variables de entorno en Vercel (Production):
-   - `VITE_API_URL=https://TU-BACKEND-RAILWAY`
-5. Deploy y validar:
-   - Carga de UI
-   - Flujo de subida y estado de solicitud
+1. En Railway: **New Project** → **Deploy from GitHub** → elige el repo del monorepo.
+2. En el servicio: **Settings** → **Source** (o **Build**):
+   - **Root Directory**: escribe exactamente **`backend`** (sin barra inicial).
+3. **Settings** → **Deploy** (o revisa el repo):
+   - **Start command** debe ser equivalente a:  
+     `uvicorn main:app --host 0.0.0.0 --port $PORT`  
+     (ya viene en `backend/railway.toml` y `backend/Procfile`.)
+4. Archivos que Railway debe ver **dentro de** `backend/`:
+   - `main.py`, `requirements.txt`, `railway.toml`, `Procfile`, `nixpacks.toml` (Tesseract para imagenes).
+
+### Variables de entorno (Railway)
+
+- `HF_TOKEN` — obligatoria para clasificacion/NER con Hugging Face.
+- No hace falta `TESSERACT_CMD` en Linux; `nixpacks.toml` instala Tesseract por apt.
+
+### Comprobacion obligatoria antes de pegar la URL en Vercel
+
+Abre en el navegador o con curl la URL publica del servicio:
+
+- `GET https://TU-SERVICIO.up.railway.app/health`
+
+**Correcto:** cuerpo JSON, por ejemplo `{"status":"ok"}`.  
+**Incorrecto:** HTML (pagina con `<title>OCR` o similar) — entonces el servicio esta sirviendo el **front** o el root equivocado; vuelve al paso **Root Directory = `backend`** y redeploy.
+
+Opcional: `GET https://TU-SERVICIO.up.railway.app/docs` debe mostrar la documentacion Swagger de FastAPI.
+
+### Si ya tenias un servicio mal configurado
+
+- Edita **Root Directory** a `backend`, guarda y **Redeploy**; o crea **otro servicio** en el mismo proyecto Railway solo para la API y deja el otro apagado o borralo para no confundir URLs.
+
+## 3) Monorepo — Frontend en Vercel (mismo repo)
+
+1. En Vercel: **Add New** → **Project** → importa el **mismo** repo de GitHub.
+2. **Root Directory** (elige una opcion):
+   - **Opcion A (recomendada con este repo):** deja **vacío** o **`.`** — en la raiz hay `package.json` que ejecuta el build de `frontend/` y `vercel.json` con `outputDirectory: frontend/dist`.
+   - **Opcion B:** `frontend` — entonces el build usa el `package.json` de esa carpeta; puedes alinear `vercel.json` dentro de `frontend/` si lo prefieres.
+3. Variables de entorno en Vercel (**Production** y **Preview**):
+   - `VITE_API_URL` = la URL **HTTPS** del servicio Railway del paso 2 (la que devuelve JSON en `/health`).
+4. Deploy y validar:
+   - La UI carga.
+   - Subir imagen/PDF no devuelve 405 ni CORS falso (si falla, revisa de nuevo `/health` en Railway).
 
 ## 4) Deploy landing en Vercel
 
@@ -75,7 +96,7 @@ Guia rapida para publicar el monorepo en Railway (backend) y Vercel (frontend + 
 - [ ] `.env` no esta en Git
 - [ ] `HF_TOKEN` solo en Railway
 - [ ] `VITE_API_URL` solo en Vercel
-- [ ] `backend/health` responde ok
+- [ ] `GET .../health` en Railway devuelve JSON `{"status":"ok"}` (no HTML)
 - [ ] Frontend en Vercel consume la URL real de Railway
 - [ ] Flujo solicitante -> revisor probado en entorno productivo
 - [ ] Logs revisados despues del primer despliegue
