@@ -15,7 +15,9 @@ CLASSIFIER_URL = f"https://router.huggingface.co/hf-inference/models/{CLASSIFIER
 
 def _get_hf_token() -> str:
     """Obtiene token actual de entorno en tiempo de ejecucion."""
-    return (os.getenv("HF_TOKEN") or "").strip()
+    return (
+        (os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_TOKEN") or "").strip()
+    )
 
 
 def _headers() -> Dict[str, str]:
