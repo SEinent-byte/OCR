@@ -10,6 +10,8 @@ const ENTITY_LABELS = {
   otros: "Otros",
 };
 
+const SHARED_APP_URL = "https://ocr-zeta-eight.vercel.app";
+
 function getPriorityClass(priority) {
   if (priority === "ALTA") return "badge alta";
   if (priority === "MEDIA") return "badge media";
@@ -38,6 +40,30 @@ function getObservationToneClass(status) {
   return "observation-pill observation-pill-pending";
 }
 
+function formatDocumentType(type) {
+  const raw = String(type || "").trim();
+  if (!raw) return "No definido";
+  const dictionary = {
+    TRAMITE_GENERAL: "Trámite general",
+    LICENCIA_CONSTRUCCION: "Licencia de construcción",
+    LICENCIA_FUNCIONAMIENTO: "Licencia de funcionamiento",
+    RECLAMO: "Reclamo",
+    DENUNCIA: "Denuncia",
+    CONSTANCIA: "Constancia",
+  };
+  if (dictionary[raw]) return dictionary[raw];
+  return raw
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getSolicitudTitle(item) {
+  if (item?.titulo) return item.titulo;
+  const fallback = String(item?.id || "").replace(/\D/g, "").slice(-4) || "0000";
+  return `Solicitud #${fallback}`;
+}
+
 export default function App() {
   const [role, setRole] = useState(null);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
@@ -50,6 +76,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [observation, setObservation] = useState("");
   const [bandejaPage, setBandejaPage] = useState(1);
+  const [activeDesktopTab, setActiveDesktopTab] = useState("inicio");
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [historySearch, setHistorySearch] = useState("");
   const [historyPage, setHistoryPage] = useState(1);
@@ -172,6 +200,7 @@ export default function App() {
       const nuevaSolicitud = {
         id: `SOL-${Date.now()}`,
         archivo: file?.name ?? "Documento",
+        titulo: `Solicitud #${String(Date.now()).slice(-4)}`,
         fecha: new Date().toLocaleString(),
         estado: "PENDIENTE",
         observation: "",
@@ -202,6 +231,7 @@ export default function App() {
     };
     setSolicitudes((prev) => prev.map((s) => (s.id === selectedSolicitud.id ? updated : s)));
     setObservation("");
+    setReviewModalOpen(false);
   };
 
   const handleRoleChange = (nextRole) => {
@@ -214,16 +244,25 @@ export default function App() {
   };
 
   const goToSolicitantePanel = () => {
+    setActiveDesktopTab("inicio");
+    setRole("solicitante");
+    setTimeout(() => scrollToSection(solicitanteFormRef), 0);
+  };
+
+  const goToInicio = () => {
+    setActiveDesktopTab("inicio");
     setRole(null);
     setRoleMenuOpen(false);
   };
 
   const goToSolicitanteSolicitudes = () => {
+    setActiveDesktopTab("solicitudes");
     setRole("solicitante");
     setTimeout(() => scrollToSection(misSolicitudesRef), 0);
   };
 
   const goToRevisorBandeja = () => {
+    setActiveDesktopTab("bandeja");
     setRole("revisor");
     if (!selectedId && solicitudes.length) {
       setSelectedId(solicitudes[0].id);
@@ -232,6 +271,7 @@ export default function App() {
   };
 
   const goToRevisorDecision = () => {
+    setActiveDesktopTab("decisiones");
     setRole("revisor");
     if (!selectedId && solicitudes.length) {
       setSelectedId(solicitudes[0].id);
@@ -255,18 +295,59 @@ export default function App() {
   };
 
   const shareByWhatsApp = () => {
-    const appUrl = "https://ocr-zeta-eight.vercel.app";
     const message =
       "Prueba la app web OCR municipal.\n" +
       "Creador: A.\n" +
       "Contacto: 970999796.\n" +
-      `Enlace: ${appUrl}`;
+      `Enlace: ${SHARED_APP_URL}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
-    <main className="container">
+    <main className="app-shell">
+      <aside className="desktop-sidebar">
+        <div className="sidebar-head">
+          <span className="sidebar-brand-dot" />
+          <strong>Trámites Municipales</strong>
+        </div>
+        <p className="sidebar-user">Usuario activo</p>
+        <nav className="sidebar-nav">
+          <button
+            type="button"
+            className={activeDesktopTab === "inicio" ? "sidebar-link active" : "sidebar-link"}
+            onClick={goToInicio}
+          >
+            Inicio
+          </button>
+          <button
+            type="button"
+            className={activeDesktopTab === "solicitudes" ? "sidebar-link active" : "sidebar-link"}
+            onClick={goToSolicitanteSolicitudes}
+          >
+            Mis solicitudes
+          </button>
+          <button
+            type="button"
+            className={activeDesktopTab === "bandeja" ? "sidebar-link active" : "sidebar-link"}
+            onClick={goToRevisorBandeja}
+          >
+            Bandeja revisor
+          </button>
+          <button
+            type="button"
+            className={activeDesktopTab === "decisiones" ? "sidebar-link active" : "sidebar-link"}
+            onClick={goToRevisorDecision}
+          >
+            Mis decisiones
+          </button>
+        </nav>
+        <button type="button" className="sidebar-share" onClick={shareByWhatsApp}>
+          Compartir app
+        </button>
+      </aside>
+
+      <div className="container">
       <header className="hero">
         {!role && (
           <>
@@ -310,11 +391,11 @@ export default function App() {
 
       {!role ? (
         <section className="role-selector grid">
-          <article className="card role-card" onClick={() => setRole("solicitante")}>
+          <article className="card role-card role-card-solicitante" onClick={() => setRole("solicitante")}>
             <h2>Solicitante</h2>
             <p className="sub">Sube tu documento y recibe la confirmación del resultado de revisión.</p>
           </article>
-          <article className="card role-card" onClick={() => setRole("revisor")}>
+          <article className="card role-card role-card-revisor" onClick={() => setRole("revisor")}>
             <h2>Revisor Municipal</h2>
             <p className="sub">Atiende solicitudes pendientes y decide su aprobación.</p>
           </article>
@@ -387,19 +468,23 @@ export default function App() {
                     <h2>Resumen de seguimiento</h2>
                     <p className="sub">Vista rápida del estado de tus trámites.</p>
                     <div className="widget-grid">
-                      <div className="widget-item">
+                      <div className="widget-item widget-registradas">
+                        <span className="widget-icon">▣</span>
                         <span>Solicitudes registradas</span>
                         <strong>{stats.total}</strong>
                       </div>
-                      <div className="widget-item">
+                      <div className="widget-item widget-revision">
+                        <span className="widget-icon">◔</span>
                         <span>En revisión</span>
                         <strong>{stats.pendientes}</strong>
                       </div>
-                      <div className="widget-item">
+                      <div className="widget-item widget-ok">
+                        <span className="widget-icon">✓</span>
                         <span>Conformidad emitida</span>
                         <strong>{stats.aceptadas}</strong>
                       </div>
-                      <div className="widget-item">
+                      <div className="widget-item widget-fix">
+                        <span className="widget-icon">!</span>
                         <span>Requieren corrección</span>
                         <strong>{stats.requierenCorreccion}</strong>
                       </div>
@@ -457,7 +542,7 @@ export default function App() {
                             {historyItems.map((item) => (
                               <li key={item.id} className="history-item">
                                 <div className="history-item-top">
-                                  <strong>{item.archivo}</strong>
+                                  <strong>{getSolicitudTitle(item)}</strong>
                                   <span className={getStatusToneClass(item.estado)}>
                                     {getStatusLabel(item.estado)}
                                   </span>
@@ -505,93 +590,56 @@ export default function App() {
           {role === "revisor" && (
             <section className="workspace">
               <div className="module-content">
-                <article className="card module-title">
-                  <h2>Solicitudes por atender</h2>
-                  <p className="sub">Selecciona una solicitud para revisar y emitir decisión.</p>
-                </article>
-
-                <section className="grid reviewer-grid">
-                  <article className="card" ref={reviewerBandejaRef}>
-                    <h2>Bandeja</h2>
-                    {solicitudes.length === 0 ? (
-                      <p className="empty">No hay solicitudes procesadas aún.</p>
-                    ) : (
-                      <>
-                        <div className="request-list">
+                <article className="card" ref={reviewerBandejaRef}>
+                  <h2>Bandeja</h2>
+                  {solicitudes.length === 0 ? (
+                    <p className="empty">No hay solicitudes procesadas aún.</p>
+                  ) : (
+                    <>
+                      <div className="request-list">
                         {bandejaItems.map((solicitud) => (
                           <button
                             key={solicitud.id}
                             type="button"
                             className={selectedId === solicitud.id ? "request-item active" : "request-item"}
-                            onClick={() => setSelectedId(solicitud.id)}
+                            onClick={() => {
+                              setSelectedId(solicitud.id);
+                              setReviewModalOpen(true);
+                            }}
                           >
-                            <strong>{solicitud.archivo}</strong>
+                            <strong>{getSolicitudTitle(solicitud)}</strong>
                             <span>{solicitud.id}</span>
                             <span>{solicitud.fecha}</span>
-                            <em>{solicitud.estado}</em>
+                            <em className={getStatusToneClass(solicitud.estado)}>
+                              {getStatusLabel(solicitud.estado)}
+                            </em>
                           </button>
                         ))}
-                        </div>
-                        <div className="pager">
-                          <button
-                            type="button"
-                            className="pager-btn"
-                            onClick={() => setBandejaPage((prev) => Math.max(1, prev - 1))}
-                            disabled={bandejaPage === 1}
-                          >
-                            {"<"}
-                          </button>
-                          <span className="pager-info">
-                            Página {bandejaPage} de {bandejaTotalPages}
-                          </span>
-                          <button
-                            type="button"
-                            className="pager-btn"
-                            onClick={() => setBandejaPage((prev) => Math.min(bandejaTotalPages, prev + 1))}
-                            disabled={bandejaPage === bandejaTotalPages}
-                          >
-                            {">"}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </article>
-
-                  <article className="card" ref={reviewerDecisionRef}>
-                    <h2>Detalle y decisión</h2>
-                    {selectedSolicitud ? (
-                      <>
-                        <p className="review-state">Tipo: <strong>{selectedSolicitud.predictData.clasificacion?.tipo ?? "N/A"}</strong></p>
-                        <p className="review-state">
-                          Prioridad:{" "}
-                          <strong className={getPriorityClass(selectedSolicitud.predictData.clasificacion?.prioridad)}>
-                            {selectedSolicitud.predictData.clasificacion?.prioridad ?? "N/A"}
-                          </strong>
-                        </p>
-
-                        <section className="entity-block">
-                          <h3>Contenido del documento</h3>
-                          <pre className="text-preview">{selectedSolicitud.uploadData?.texto_extraido ?? "Sin texto."}</pre>
-                        </section>
-
-                        <textarea
-                          className="observation"
-                          placeholder="Observación para el solicitante"
-                          value={observation}
-                          onChange={(e) => setObservation(e.target.value)}
-                        />
-
-                        <div className="action-row">
-                          <button type="button" className="btn-action aprobar" onClick={() => reviewSolicitud("ACEPTADA")}>Aceptar</button>
-                          <button type="button" className="btn-action observar" onClick={() => reviewSolicitud("OBSERVADA")}>Observar</button>
-                          <button type="button" className="btn-action rechazar" onClick={() => reviewSolicitud("RECHAZADA")}>Rechazar</button>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="empty">Selecciona una solicitud para revisar.</p>
-                    )}
-                  </article>
-                </section>
+                      </div>
+                      <div className="pager">
+                        <button
+                          type="button"
+                          className="pager-btn"
+                          onClick={() => setBandejaPage((prev) => Math.max(1, prev - 1))}
+                          disabled={bandejaPage === 1}
+                        >
+                          {"<"}
+                        </button>
+                        <span className="pager-info">
+                          Página {bandejaPage} de {bandejaTotalPages}
+                        </span>
+                        <button
+                          type="button"
+                          className="pager-btn"
+                          onClick={() => setBandejaPage((prev) => Math.min(bandejaTotalPages, prev + 1))}
+                          disabled={bandejaPage === bandejaTotalPages}
+                        >
+                          {">"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </article>
               </div>
             </section>
           )}
@@ -600,14 +648,14 @@ export default function App() {
       <nav className="mobile-bottom-nav" aria-label="Navegación móvil">
         <button type="button" className="mobile-nav-item" onClick={goToSolicitantePanel}>
           <span className="mobile-nav-icon">⌂</span>
-          <span>Inicio</span>
+          <span>Panel</span>
         </button>
         <button type="button" className="mobile-nav-item" onClick={goToSolicitanteSolicitudes}>
           <span className="mobile-nav-icon">☰</span>
           <span>Mis</span>
         </button>
         <button type="button" className="mobile-nav-item mobile-nav-item-plus" onClick={installPwa}>
-          <span className="mobile-nav-icon mobile-nav-download" aria-hidden="true">⤓</span>
+          <span className="mobile-nav-icon mobile-nav-download" aria-hidden="true">↓</span>
           <span className="sr-only">Instalar app</span>
         </button>
         <button type="button" className="mobile-nav-item" onClick={goToRevisorBandeja}>
@@ -626,6 +674,53 @@ export default function App() {
         </button>
       </nav>
       {pwaStatus && <p className="mobile-install-status">{pwaStatus}</p>}
+
+      {reviewModalOpen && selectedSolicitud && (
+        <div className="review-modal-backdrop" onClick={() => setReviewModalOpen(false)}>
+          <article
+            className="review-modal"
+            ref={reviewerDecisionRef}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="review-modal-head">
+              <h2>Revisión de solicitud</h2>
+              <button type="button" className="review-modal-close" onClick={() => setReviewModalOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <p className="review-state">
+              Tipo:{" "}
+              <strong>{formatDocumentType(selectedSolicitud.predictData.clasificacion?.tipo)}</strong>
+            </p>
+            <p className="review-state">
+              Prioridad:{" "}
+              <strong className={getPriorityClass(selectedSolicitud.predictData.clasificacion?.prioridad)}>
+                {selectedSolicitud.predictData.clasificacion?.prioridad ?? "N/A"}
+              </strong>
+            </p>
+
+            <section className="entity-block">
+              <h3>Contenido del documento</h3>
+              <pre className="text-preview">{selectedSolicitud.uploadData?.texto_extraido ?? "Sin texto."}</pre>
+            </section>
+
+            <textarea
+              className="observation"
+              placeholder="Observación para el solicitante"
+              value={observation}
+              onChange={(e) => setObservation(e.target.value)}
+            />
+
+            <div className="action-row">
+              <button type="button" className="btn-action aprobar" onClick={() => reviewSolicitud("ACEPTADA")}>Aceptar</button>
+              <button type="button" className="btn-action observar" onClick={() => reviewSolicitud("OBSERVADA")}>Observar</button>
+              <button type="button" className="btn-action rechazar" onClick={() => reviewSolicitud("RECHAZADA")}>Rechazar</button>
+            </div>
+          </article>
+        </div>
+      )}
+      </div>
     </main>
   );
 }
