@@ -42,9 +42,10 @@ Guia rapida para publicar el monorepo en Railway (backend) y Vercel (frontend + 
    - **Root Directory**: `backend`
 4. Verificar que Railway detecte:
    - `Procfile` y/o `railway.toml`
+   - `nixpacks.toml` (instala Tesseract para OCR de imágenes)
 5. Variables de entorno en Railway:
    - `HF_TOKEN` (obligatoria)
-   - `TESSERACT_CMD` (solo si usas OCR de imagen y lo necesitas)
+   - `TESSERACT_CMD` (solo en Windows local; en Railway no hace falta: `backend/nixpacks.toml` instala Tesseract con apt)
 6. Confirmar que el servicio quede con healthcheck:
    - `/health`
 7. Guardar la URL publica del backend:

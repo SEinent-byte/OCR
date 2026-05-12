@@ -1,0 +1,3 @@
+# Instala Tesseract en la imagen (necesario para OCR de PNG/JPG en Railway).
+[phases.setup]
+aptPkgs = ["tesseract-ocr", "tesseract-ocr-spa", "tesseract-ocr-eng"]
