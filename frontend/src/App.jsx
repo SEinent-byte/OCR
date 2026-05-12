@@ -101,7 +101,6 @@ export default function App() {
   const latestFeedback = reviewedSolicitudes[0] ?? null;
   const currentRoleLabel = role === "solicitante" ? "Solicitante" : "Revisor Municipal";
   const pendientesRevisionCount = solicitudes.filter((s) => s.estado === "PENDIENTE").length;
-  const decisionPendienteCount = selectedSolicitud ? 1 : 0;
   const historyFiltered = useMemo(() => {
     const needle = historySearch.trim().toLowerCase();
     if (!needle) return solicitudes;
@@ -295,11 +294,7 @@ export default function App() {
   };
 
   const shareByWhatsApp = () => {
-    const message =
-      "Prueba la app web OCR municipal.\n" +
-      "Creador: A.\n" +
-      "Contacto: 970999796.\n" +
-      `Enlace: ${SHARED_APP_URL}`;
+    const message = `Te comparto la app de Trámites Municipales: ${SHARED_APP_URL}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
@@ -665,12 +660,9 @@ export default function App() {
             <span className="mobile-nav-count">{pendientesRevisionCount}</span>
           )}
         </button>
-        <button type="button" className="mobile-nav-item" onClick={goToRevisorDecision}>
-          <span className="mobile-nav-icon">✓</span>
-          <span>Decidir</span>
-          {decisionPendienteCount > 0 && (
-            <span className="mobile-nav-count">{decisionPendienteCount}</span>
-          )}
+        <button type="button" className="mobile-nav-item" onClick={shareByWhatsApp}>
+          <span className="mobile-nav-icon mobile-nav-whatsapp" aria-hidden="true">✆</span>
+          <span>Compartir</span>
         </button>
       </nav>
       {pwaStatus && <p className="mobile-install-status">{pwaStatus}</p>}

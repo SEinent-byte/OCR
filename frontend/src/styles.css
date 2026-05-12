@@ -1408,6 +1408,18 @@ h2 {
     background: rgba(219, 234, 254, 0.95);
   }
 
+  .mobile-nav-whatsapp {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: inline-grid;
+    place-items: center;
+    font-size: 13px;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(22, 163, 74, 0.9));
+    color: #ecfdf5;
+    box-shadow: 0 0 0 1px rgba(134, 239, 172, 0.4);
+  }
+
   .mobile-nav-count {
     position: absolute;
     top: 3px;
