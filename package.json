@@ -1,0 +1,8 @@
+{
+  "name": "sagt-monorepo",
+  "private": true,
+  "description": "Raiz minima para Vercel: el front vive en frontend/",
+  "scripts": {
+    "build": "npm ci --prefix frontend && npm run build --prefix frontend"
+  }
+}
