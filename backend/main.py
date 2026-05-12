@@ -46,6 +46,12 @@ async def health() -> Dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    """Evita 404 en logs cuando el navegador pide el icono de la pestaña."""
+    return Response(status_code=204)
+
+
 @app.post("/upload", response_model=DocumentResponse)
 @app.post("/upload/", response_model=DocumentResponse)
 async def upload_document(file: UploadFile = File(...)) -> DocumentResponse:
