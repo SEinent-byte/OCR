@@ -1,9 +1,10 @@
-import os
 import re
 from typing import Dict
 
 import requests
 from dotenv import load_dotenv
+
+from ml_models.hf_env import get_hf_token, hf_token_missing_message
 
 # Carga variables de entorno para token de Hugging Face.
 load_dotenv(override=True)
@@ -13,16 +14,9 @@ CLASSIFIER_MODEL = "finiteautomata/beto-sentiment-analysis"
 CLASSIFIER_URL = f"https://router.huggingface.co/hf-inference/models/{CLASSIFIER_MODEL}"
 
 
-def _get_hf_token() -> str:
-    """Obtiene token actual de entorno en tiempo de ejecucion."""
-    return (
-        (os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_TOKEN") or "").strip()
-    )
-
-
 def _headers() -> Dict[str, str]:
     headers = {"Content-Type": "application/json"}
-    token = _get_hf_token()
+    token = get_hf_token()
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
@@ -82,8 +76,8 @@ def _rule_based_priority(text: str) -> Dict[str, object]:
 def classify_document(text: str) -> Dict[str, object]:
     """Clasifica tramite con enfoque hibrido (reglas + apoyo HF)."""
     try:
-        if not _get_hf_token():
-            raise RuntimeError("HF_TOKEN no configurado en variables de entorno.")
+        if not get_hf_token():
+            raise RuntimeError(hf_token_missing_message())
         doc_type = _infer_document_type(text)
         rule_result = _rule_based_priority(text)
 

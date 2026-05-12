@@ -1,9 +1,10 @@
-import os
 import re
 from typing import Dict, List
 
 import requests
 from dotenv import load_dotenv
+
+from ml_models.hf_env import get_hf_token, hf_token_missing_message
 
 # Carga variables de entorno (solo local; en Railway se inyectan por dashboard).
 load_dotenv(override=True)
@@ -13,16 +14,9 @@ NER_MODEL = "mrm8488/bert-spanish-cased-finetuned-ner"
 NER_URL = f"https://router.huggingface.co/hf-inference/models/{NER_MODEL}"
 
 
-def _get_hf_token() -> str:
-    """Obtiene token actual de entorno en tiempo de ejecucion."""
-    return (
-        (os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_TOKEN") or "").strip()
-    )
-
-
 def _headers() -> Dict[str, str]:
     headers = {"Content-Type": "application/json"}
-    token = _get_hf_token()
+    token = get_hf_token()
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
@@ -100,8 +94,8 @@ def _extract_rule_entities(text: str) -> Dict[str, List[str]]:
 def extract_entities(text: str) -> Dict[str, List[str]]:
     """Extrae entidades llamando a HuggingFace Inference API."""
     try:
-        if not _get_hf_token():
-            raise RuntimeError("HF_TOKEN no configurado en variables de entorno.")
+        if not get_hf_token():
+            raise RuntimeError(hf_token_missing_message())
         if not text.strip():
             return {"personas": [], "lugares": [], "organizaciones": [], "otros": []}
 
