@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import creatorPhoto from "./img/a.png";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/+$/, "");
 
@@ -12,11 +13,22 @@ const ENTITY_LABELS = {
 function getPriorityClass(priority) {
   if (priority === "ALTA") return "badge alta";
   if (priority === "MEDIA") return "badge media";
+  if (priority === "NULA") return "badge nula";
   return "badge baja";
+}
+
+function getStatusLabel(status) {
+  if (status === "ACEPTADA") return "ACEPTADA";
+  if (status === "OBSERVADA") return "OBSERVADA";
+  if (status === "RECHAZADA") return "RECHAZADA";
+  return "PENDIENTE";
 }
 
 export default function App() {
   const [role, setRole] = useState(null);
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [pwaStatus, setPwaStatus] = useState("");
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState("Listo para analizar.");
   const [solicitudes, setSolicitudes] = useState([]);
@@ -27,6 +39,10 @@ export default function App() {
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [cooldownLeft, setCooldownLeft] = useState(0);
   const BANDEJA_PAGE_SIZE = 5;
+  const solicitanteFormRef = useRef(null);
+  const misSolicitudesRef = useRef(null);
+  const reviewerBandejaRef = useRef(null);
+  const reviewerDecisionRef = useRef(null);
 
   const selectedSolicitud = solicitudes.find((item) => item.id === selectedId) ?? null;
   const isCooldownActive = cooldownUntil > Date.now();
@@ -34,12 +50,19 @@ export default function App() {
   const bandejaTotalPages = Math.max(1, Math.ceil(solicitudes.length / BANDEJA_PAGE_SIZE));
   const bandejaStart = (bandejaPage - 1) * BANDEJA_PAGE_SIZE;
   const bandejaItems = solicitudes.slice(bandejaStart, bandejaStart + BANDEJA_PAGE_SIZE);
+  const reviewedSolicitudes = solicitudes.filter((s) => s.estado !== "PENDIENTE");
+  const latestFeedback = reviewedSolicitudes[0] ?? null;
+  const currentRoleLabel = role === "solicitante" ? "Solicitante" : "Revisor Municipal";
+  const pendientesRevisionCount = solicitudes.filter((s) => s.estado === "PENDIENTE").length;
+  const decisionPendienteCount = selectedSolicitud ? 1 : 0;
   const stats = useMemo(() => {
     const total = solicitudes.length;
     const pendientes = solicitudes.filter((s) => s.estado === "PENDIENTE").length;
     const aceptadas = solicitudes.filter((s) => s.estado === "ACEPTADA").length;
-    const rechazadas = solicitudes.filter((s) => s.estado === "RECHAZADA").length;
-    return { total, pendientes, aceptadas, rechazadas };
+    const requierenCorreccion = solicitudes.filter(
+      (s) => s.estado === "OBSERVADA" || s.estado === "RECHAZADA"
+    ).length;
+    return { total, pendientes, aceptadas, requierenCorreccion };
   }, [solicitudes]);
 
   useEffect(() => {
@@ -55,6 +78,24 @@ export default function App() {
     const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
   }, [cooldownUntil, isCooldownActive]);
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setDeferredPrompt(event);
+      setPwaStatus("Instalación disponible");
+    };
+    const onInstalled = () => {
+      setPwaStatus("App instalada");
+      setDeferredPrompt(null);
+    };
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -121,6 +162,67 @@ export default function App() {
     setObservation("");
   };
 
+  const handleRoleChange = (nextRole) => {
+    setRole(nextRole);
+    setRoleMenuOpen(false);
+  };
+
+  const scrollToSection = (ref) => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const goToSolicitantePanel = () => {
+    setRole("solicitante");
+    setTimeout(() => scrollToSection(solicitanteFormRef), 0);
+  };
+
+  const goToSolicitanteSolicitudes = () => {
+    setRole("solicitante");
+    setTimeout(() => scrollToSection(misSolicitudesRef), 0);
+  };
+
+  const goToRevisorBandeja = () => {
+    setRole("revisor");
+    if (!selectedId && solicitudes.length) {
+      setSelectedId(solicitudes[0].id);
+    }
+    setTimeout(() => scrollToSection(reviewerBandejaRef), 0);
+  };
+
+  const goToRevisorDecision = () => {
+    setRole("revisor");
+    if (!selectedId && solicitudes.length) {
+      setSelectedId(solicitudes[0].id);
+    }
+    setTimeout(() => scrollToSection(reviewerDecisionRef), 0);
+  };
+
+  const installPwa = async () => {
+    if (!deferredPrompt) {
+      setPwaStatus("Instalación no disponible en este dispositivo");
+      return;
+    }
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    if (result.outcome === "accepted") {
+      setPwaStatus("Instalando app...");
+    } else {
+      setPwaStatus("Instalación cancelada");
+    }
+    setDeferredPrompt(null);
+  };
+
+  const shareByWhatsApp = () => {
+    const appUrl = window.location.href;
+    const message =
+      "Prueba la app web OCR municipal.\n" +
+      "Creador: A.\n" +
+      "Contacto: 970999796.\n" +
+      `Enlace: ${appUrl}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <main className="container">
       <header className="hero">
@@ -129,6 +231,22 @@ export default function App() {
           <h1>SAGT - Dashboard de Tramites</h1>
         </div>
         <p className="sub">Flujo por rol: solicitante carga, revisor evalúa y decide.</p>
+        <div className="hero-contact-row">
+          <article className="creator-card">
+            <img
+              src={creatorPhoto}
+              alt="Creador A"
+              className="creator-avatar"
+            />
+            <div className="creator-copy">
+              <strong>Creador: A</strong>
+              <span>Contacto: 970999796</span>
+            </div>
+          </article>
+          <button type="button" className="share-whatsapp-btn" onClick={shareByWhatsApp}>
+            Compartir por WhatsApp
+          </button>
+        </div>
       </header>
 
       {!role ? (
@@ -145,8 +263,46 @@ export default function App() {
       ) : (
         <>
           <div className="role-topbar">
-            <p className="status">Rol activo: {role === "solicitante" ? "Solicitante" : "Revisor Municipal"} · {status}</p>
-            <button type="button" onClick={() => setRole(null)}>Cambiar rol</button>
+            <div className="role-topbar-info">
+              <span className="role-chip">{currentRoleLabel}</span>
+              <p className="status-text">{status}</p>
+            </div>
+            <div className="role-menu">
+              <button
+                type="button"
+                className="menu-toggle"
+                onClick={() => setRoleMenuOpen((prev) => !prev)}
+                aria-label="Abrir menú de rol"
+                aria-expanded={roleMenuOpen}
+              >
+                ☰
+              </button>
+              {roleMenuOpen && (
+                <div className="menu-dropdown">
+                  <button
+                    type="button"
+                    className="menu-item"
+                    onClick={() => handleRoleChange("solicitante")}
+                  >
+                    Ver como Solicitante
+                  </button>
+                  <button
+                    type="button"
+                    className="menu-item"
+                    onClick={() => handleRoleChange("revisor")}
+                  >
+                    Ver como Revisor
+                  </button>
+                  <button
+                    type="button"
+                    className="menu-item menu-item-danger"
+                    onClick={() => handleRoleChange(null)}
+                  >
+                    Salir al selector de rol
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {role === "solicitante" && (
@@ -158,7 +314,7 @@ export default function App() {
                 </article>
 
                 <section className="grid solicitante-grid">
-                  <form onSubmit={onSubmit} className="card">
+                  <form onSubmit={onSubmit} className="card" ref={solicitanteFormRef}>
                     <label className="field-label" htmlFor="fileInput">Documento (PDF o imagen)</label>
                     <input
                       id="fileInput"
@@ -191,13 +347,30 @@ export default function App() {
                       </div>
                       <div className="widget-item">
                         <span>Requieren corrección</span>
-                        <strong>{stats.rechazadas}</strong>
+                        <strong>{stats.requierenCorreccion}</strong>
                       </div>
                     </div>
                   </article>
                 </section>
 
-                <article className="card">
+                {latestFeedback && (
+                  <article className="card">
+                    <h2>Última respuesta del revisor</h2>
+                    <p className="review-state">
+                      Trámite <strong>{latestFeedback.id}</strong> · Estado{" "}
+                      <strong>{getStatusLabel(latestFeedback.estado)}</strong>
+                    </p>
+                    <p className="review-state">
+                      Comentario:{" "}
+                      <strong>{latestFeedback.observation || "Sin observación"}</strong>
+                    </p>
+                    <p className="sub">
+                      Fecha de revisión: {latestFeedback.fechaRevision || "Pendiente"}
+                    </p>
+                  </article>
+                )}
+
+                <article className="card" ref={misSolicitudesRef}>
                   <h2>Mis solicitudes</h2>
                   {solicitudes.length === 0 ? (
                     <p className="empty">Aún no enviaste solicitudes.</p>
@@ -207,7 +380,7 @@ export default function App() {
                         <li key={item.id}>
                           <strong>{item.archivo}</strong>
                           <span>{item.id}</span>
-                          <span>Estado: {item.estado}</span>
+                          <span>Estado: {getStatusLabel(item.estado)}</span>
                           <small>Observación: {item.observation || "Pendiente de revisión"}</small>
                           <em>{item.fechaRevision || item.fecha}</em>
                         </li>
@@ -228,7 +401,7 @@ export default function App() {
                 </article>
 
                 <section className="grid reviewer-grid">
-                  <article className="card">
+                  <article className="card" ref={reviewerBandejaRef}>
                     <h2>Bandeja</h2>
                     {solicitudes.length === 0 ? (
                       <p className="empty">No hay solicitudes procesadas aún.</p>
@@ -274,7 +447,7 @@ export default function App() {
                     )}
                   </article>
 
-                  <article className="card">
+                  <article className="card" ref={reviewerDecisionRef}>
                     <h2>Detalle y decisión</h2>
                     {selectedSolicitud ? (
                       <>
@@ -314,6 +487,35 @@ export default function App() {
           )}
         </>
       )}
+      <nav className="mobile-bottom-nav" aria-label="Navegación móvil">
+        <button type="button" className="mobile-nav-item" onClick={goToSolicitantePanel}>
+          <span className="mobile-nav-icon">⌂</span>
+          <span>Panel</span>
+        </button>
+        <button type="button" className="mobile-nav-item" onClick={goToSolicitanteSolicitudes}>
+          <span className="mobile-nav-icon">☰</span>
+          <span>Mis</span>
+        </button>
+        <button type="button" className="mobile-nav-item mobile-nav-item-plus" onClick={installPwa}>
+          <span className="mobile-nav-icon">＋</span>
+          <span>Instalar</span>
+        </button>
+        <button type="button" className="mobile-nav-item" onClick={goToRevisorBandeja}>
+          <span className="mobile-nav-icon">🗂</span>
+          <span>Revisor</span>
+          {pendientesRevisionCount > 0 && (
+            <span className="mobile-nav-count">{pendientesRevisionCount}</span>
+          )}
+        </button>
+        <button type="button" className="mobile-nav-item" onClick={goToRevisorDecision}>
+          <span className="mobile-nav-icon">✔</span>
+          <span>Decidir</span>
+          {decisionPendienteCount > 0 && (
+            <span className="mobile-nav-count">{decisionPendienteCount}</span>
+          )}
+        </button>
+      </nav>
+      {pwaStatus && <p className="mobile-install-status">{pwaStatus}</p>}
     </main>
   );
 }

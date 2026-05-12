@@ -42,7 +42,8 @@ def _rule_based_priority(text: str) -> Dict[str, object]:
     """
     Puntaje de urgencia basado en reglas administrativas:
     - plazos cortos, fiscalizacion, riesgo -> ALTA
-    - solicitudes estandar -> MEDIA/BAJA
+    - solicitudes estandar -> MEDIA
+    - sin senales detectables -> NULA
     """
     lower = text.lower()
     high_signals = [
@@ -70,7 +71,7 @@ def _rule_based_priority(text: str) -> Dict[str, object]:
         return {"prioridad": "ALTA", "confianza": round(score, 4)}
     if medium_hits >= 1:
         return {"prioridad": "MEDIA", "confianza": round(max(0.58, score), 4)}
-    return {"prioridad": "BAJA", "confianza": 0.62}
+    return {"prioridad": "NULA", "confianza": 0.5}
 
 
 def classify_document(text: str) -> Dict[str, object]:
