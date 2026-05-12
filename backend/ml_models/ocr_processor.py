@@ -8,6 +8,9 @@ import pytesseract
 from PIL import Image
 
 
+PDF_MIN_TEXT_CHARS = 60
+
+
 def _clean_text(text: str) -> str:
     """Limpia texto extraido para mejorar legibilidad."""
     text = text.replace("\x00", " ")
@@ -34,26 +37,44 @@ def _configure_tesseract() -> None:
         pytesseract.pytesseract.tesseract_cmd = common_windows_path
 
 
+def _image_to_text(image: Image.Image) -> str:
+    """Aplica OCR a una imagen PIL usando espanol con fallback a ingles."""
+    try:
+        return pytesseract.image_to_string(image, lang="spa")
+    except Exception:
+        return pytesseract.image_to_string(image, lang="eng")
+
+
+def _ocr_pdf_pages(document: fitz.Document) -> str:
+    """Hace OCR pagina por pagina para PDFs escaneados."""
+    ocr_pages = []
+    for page in document:
+        pix = page.get_pixmap(dpi=220)
+        image = Image.open(io.BytesIO(pix.tobytes("png")))
+        ocr_pages.append(_image_to_text(image))
+    return _clean_text("\n".join(ocr_pages))
+
+
 def extract_text(file_bytes: bytes, filename: str) -> str:
     """Extrae texto de PDF o imagen con manejo de errores."""
     try:
         lower_name = filename.lower()
         if lower_name.endswith(".pdf"):
-            pages = []
+            pages_text = []
             with fitz.open(stream=file_bytes, filetype="pdf") as document:
                 for page in document:
-                    pages.append(page.get_text("text"))
-            return _clean_text("\n".join(pages))
+                    pages_text.append(page.get_text("text"))
+                extracted = _clean_text("\n".join(pages_text))
+                # Si el PDF viene escaneado, el texto embebido suele ser vacio o muy corto.
+                if len(extracted) < PDF_MIN_TEXT_CHARS:
+                    _configure_tesseract()
+                    return _ocr_pdf_pages(document)
+                return extracted
 
         if lower_name.endswith((".png", ".jpg", ".jpeg")):
             _configure_tesseract()
             image = Image.open(io.BytesIO(file_bytes))
-            try:
-                # Primero intenta OCR en espanol.
-                text = pytesseract.image_to_string(image, lang="spa")
-            except Exception:
-                # Fallback para instalaciones sin paquete de idioma spa.
-                text = pytesseract.image_to_string(image, lang="eng")
+            text = _image_to_text(image)
             return _clean_text(text)
 
         raise ValueError("Tipo de archivo no soportado.")
