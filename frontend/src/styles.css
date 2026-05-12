@@ -513,15 +513,14 @@ body {
 
 button {
   margin-top: 0;
-  border: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 10px;
   padding: 10px 14px;
   background: linear-gradient(
     135deg,
-    var(--accent-3),
-    var(--accent),
-    var(--accent-4),
-    var(--accent-2)
+    rgba(30, 64, 175, 0.78),
+    rgba(37, 99, 235, 0.72),
+    rgba(67, 56, 202, 0.72)
   );
   color: #fff;
   font-weight: 700;
@@ -529,9 +528,8 @@ button {
   cursor: pointer;
   transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
   box-shadow:
-    0 12px 26px rgba(79, 70, 229, 0.35),
-    0 0 0 1px rgba(125, 211, 252, 0.14),
-    0 0 24px rgba(56, 189, 248, 0.2);
+    0 10px 22px rgba(30, 41, 59, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 button:hover:not(:disabled) {
@@ -840,6 +838,13 @@ form.card {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: linear-gradient(
+    135deg,
+    rgba(29, 78, 216, 0.62),
+    rgba(30, 64, 175, 0.58),
+    rgba(49, 46, 129, 0.58)
+  );
+  border-color: rgba(125, 211, 252, 0.26);
 }
 
 .history-toolbar {
