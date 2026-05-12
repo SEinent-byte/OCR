@@ -450,11 +450,11 @@ export default function App() {
               <div className="module-content">
                 <section className="grid solicitante-grid">
                   <form onSubmit={onSubmit} className="card" ref={solicitanteFormRef}>
-                    <label className="field-label" htmlFor="fileInput">Documento (PDF o imagen)</label>
+                    <label className="field-label" htmlFor="fileInput">Imagen del trámite</label>
                     <input
                       id="fileInput"
                       type="file"
-                      accept=".pdf,.png,.jpg,.jpeg"
+                      accept=".png,.jpg,.jpeg,.webp"
                       disabled={isSubmitLocked}
                       onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                     />
