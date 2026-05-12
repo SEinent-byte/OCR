@@ -404,6 +404,8 @@ body {
   width: 100%;
   display: grid;
   gap: 14px;
+  max-width: 1320px;
+  margin: 0 auto;
 }
 
 .solicitante-grid {
@@ -1074,12 +1076,22 @@ form.card {
   }
 
   .container {
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    height: 100vh;
+    width: auto;
+    max-width: 1480px;
+    margin: 70px;
+    height: calc(100vh - 140px);
     overflow: auto;
-    padding: 18px 22px 22px;
+    padding: 24px 26px 28px;
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: linear-gradient(
+      180deg,
+      rgba(8, 14, 33, 0.7),
+      rgba(6, 11, 26, 0.64)
+    );
+    box-shadow:
+      0 22px 48px rgba(2, 8, 30, 0.5),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
   .role-menu {
@@ -1088,11 +1100,11 @@ form.card {
 
   .workspace,
   .module-content {
-    min-height: calc(100vh - 170px);
+    min-height: calc(100vh - 300px);
   }
 
   .reviewer-grid {
-    height: calc(100vh - 250px);
+    height: min(760px, calc(100vh - 390px));
     grid-template-columns: minmax(320px, 38%) minmax(0, 62%);
   }
 
@@ -1110,6 +1122,13 @@ form.card {
   .text-preview {
     max-height: none;
     flex: 1;
+  }
+}
+
+@media (min-width: 1280px) and (max-width: 1500px) {
+  .container {
+    margin: 52px;
+    height: calc(100vh - 104px);
   }
 }
 
